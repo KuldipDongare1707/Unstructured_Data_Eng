@@ -1,7 +1,9 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import regexp_replace
 from config.config import configuration
 from pyspark.sql.types import StructType, StructField,StringType, DoubleType, DateType
 from udf_utils import *
+
 
 
 def define_udfs():
@@ -27,9 +29,9 @@ def define_udfs():
     }
 if __name__ == "__main__":
     spark =(SparkSession.builder.appName('AWS_Spark_Unstructured_Data')
-            .config('spark.jars.packages',
-                    'org.apache.hadoop:hadoop-aws:3.3.1,'
-                    'com.amazonaws:aws-java-sdk:1.11.469')
+            #.config('spark.jars.packages',
+             #       'org.apache.hadoop:hadoop-aws:3.3.1,'
+              #      'com.amazonaws:aws-java-sdk:1.11.469')
                 .config('spark.hadoop.fs.s3a.impl', 'org.apache.hadoop.fs.s3a.S3AFileSystem')
                 .config('spark.hadoop.fs.s3a.access.key',configuration.get('AWS_ACCESS_KEY') )
                 .config('spark.hadoop.fs.s3a.secret.key',configuration.get('AWS_SECRET_KEY'))
@@ -71,4 +73,23 @@ if __name__ == "__main__":
                         .option('wholetext', 'true')
                         .load(text_input_dir)
                         )
-    job_bulletine_df.show()
+    job_bulletine_df = job_bulletine_df.withColumn('file_name',
+                                                   regexp_replace(udfs['extract_file_name_udf']('value'),'\r',''))
+    job_bulletine_df = job_bulletine_df.withColumn('value', regexp_replace('value',r'\n',''))
+    job_bulletine_df = job_bulletine_df.withColumn('position', udfs['extract_position_udf']('value'))
+    #job_bulletine_df = job_bulletine_df.withColumn('salary_start', udfs['extract_salary_udf']('value').getField('salary_start'))
+    #job_bulletine_df = job_bulletine_df.withColumn('salary_end', udfs['extract_salary_udf']('value').getField('salary_start'))
+    job_bulletine_df = job_bulletine_df.withColumn('start_date', udfs['extract_date_udf']('value'))
+    job_bulletine_df = job_bulletine_df.withColumn('enddate', udfs['extract_enddate_udf']('value'))
+    
+    j_df = job_bulletine_df.select('file_name', 'position', 'start_date', 'end_date')
+
+    query = (job_bulletine_df
+             .writeStream
+             .output('append')
+             .format('console')
+             .option('truncate', False)
+             .start()
+             )
+    
+    query.awaitTermination()
