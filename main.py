@@ -73,14 +73,17 @@ if __name__ == "__main__":
                         .option('wholetext', 'true')
                         .load(text_input_dir)
                         )
-    job_bulletine_df = job_bulletine_df.withColumn('file_name',
-                                                   regexp_replace(udfs['extract_file_name_udf']('value'),'\r',''))
-    job_bulletine_df = job_bulletine_df.withColumn('value', regexp_replace('value',r'\n',''))
-    job_bulletine_df = job_bulletine_df.withColumn('position', udfs['extract_position_udf']('value'))
-    #job_bulletine_df = job_bulletine_df.withColumn('salary_start', udfs['extract_salary_udf']('value').getField('salary_start'))
-    #job_bulletine_df = job_bulletine_df.withColumn('salary_end', udfs['extract_salary_udf']('value').getField('salary_start'))
-    job_bulletine_df = job_bulletine_df.withColumn('start_date', udfs['extract_date_udf']('value'))
-    job_bulletine_df = job_bulletine_df.withColumn('enddate', udfs['extract_enddate_udf']('value'))
+    job_bulletins_df = job_bulletine_df.withColumn('file_name',
+                                                   regexp_replace(udfs['extract_file_name_udf']('value'),'\r',' '))
+    job_bulletins_df = job_bulletine_df.withColumn('value', regexp_replace('value',r'\n',''))
+    job_bulletins_df = job_bulletine_df.withColumn('position', 
+                                                   regexp_replace(udfs['extract_position_udf']('value'),r'\r',' '))
+    job_bulletine_df = job_bulletine_df.withColumn('salary_start', 
+                                                   udfs['extract_salary_udf']('value').getField('salary_start'))
+    job_bulletine_df = job_bulletine_df.withColumn('salary_end', 
+                                                   udfs['extract_salary_udf']('value').getField('salary_start'))
+    job_bulletins_df = job_bulletine_df.withColumn('start_date', udfs['extract_date_udf']('value'))
+    job_bulletins_df = job_bulletine_df.withColumn('enddate', udfs['extract_enddate_udf']('value'))
     
     j_df = job_bulletine_df.select('file_name', 'position', 'start_date', 'end_date')
 

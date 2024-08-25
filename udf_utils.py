@@ -38,7 +38,9 @@ def extract_end_date(file_content):
     return enddate
 
 def extract_salary():
-    pass
+    try:
+        salary_pattern = r'\$(d{1,3}(?:,\d{3}+).+tb.+\$(\d{1,3}(?:,\d{3})+)(?:\s+and\s+\$(\d{1,3}(?:,\d{3})+)\s+to\s+\$(\d{1,3}(?:,\d{3})+)))?'
+        
 
 def extract_requirements():
     pass
