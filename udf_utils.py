@@ -79,17 +79,38 @@ def extract_duties(file_content):
     except Exception as e:
         raise ValueError(f'Error extracting duties: {str(e)}')
 
-def extract_selection():
+def extract_selection(file_content):
     try:
-        selection_match = re.search(r'')
+        selection_match = re.findall(r'([A-Z][a-z]+)(\s\.\s)+', file_content)
+        selection = [z[0] for z in selection_match] if selection_match else None
+        return selection
     except Exception as e:
         raise ValueError(f'Error extracting selection: {str(e)}')
 
-def extract_experience_length():
-    pass
+def extract_experience_length(file_content):
+    try:
+        experience_length_match = re.search(
+            r'(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|one|two|three|four|five)\s(years?)\s(of\sfull(-|\s)time)',
+            file_content )
+        experience_length = experience_length_match.group(1) if experience_length_match else None
+        return experience_length
+    except Exception as e:
+        raise ValueError(f'Error extracting experience length: {str(e)}')    
 
-def extract_eduation_length():
-    pass
+def extract_eduation_length(file_content):
+    try:
+        education_length_match = re.search(
+            r'(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|one|two|three|four|five)(\s|-)(years?)\s(college|university)',
+            file_content )
+        education_length = education_length_match.group(1) if education_length_match else None
+        return education_length
+    except Exception as e:
+        raise ValueError(f'Error extracting education length: {str(e)}')    
 
-def extract_appication_location():
-    pass
+def extract_appication_location(file_content):
+    try:
+        application_loc_match = re.search(r'(Applications? will only be accepted on-?line)', file_content, re.IGNORECASE)
+        application_loc = 'Online' if application_loc_match else 'Mail or In Person'
+        return application_loc
+    except Exception as e:
+        raise ValueError(f'Error extracting application location: {str(e)}')

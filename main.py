@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import regexp_replace
+from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.functions import udf, regexp_replace
 from config.config import configuration
 from pyspark.sql.types import StructType, StructField,StringType, DoubleType, DateType
 from udf_utils import *
@@ -73,26 +74,60 @@ if __name__ == "__main__":
                         .option('wholetext', 'true')
                         .load(text_input_dir)
                         )
+    json_df = spark.readStream.json(json_input_dir,schema = data_schema,multiline = True)
+
     job_bulletins_df = job_bulletine_df.withColumn('file_name',
                                                    regexp_replace(udfs['extract_file_name_udf']('value'),'\r',' '))
-    job_bulletins_df = job_bulletine_df.withColumn('value', regexp_replace('value',r'\n',''))
-    job_bulletins_df = job_bulletine_df.withColumn('position', 
+    job_bulletins_df = job_bulletins_df.withColumn('value', regexp_replace(regexp_replace('value',r'\n',''), r'\r', ' '))
+    job_bulletins_df = job_bulletins_df.withColumn('position', 
                                                    regexp_replace(udfs['extract_position_udf']('value'),r'\r',' '))
-    job_bulletine_df = job_bulletine_df.withColumn('salary_start', 
+    job_bulletins_df = job_bulletins_df.withColumn('salary_start', 
                                                    udfs['extract_salary_udf']('value').getField('salary_start'))
-    job_bulletine_df = job_bulletine_df.withColumn('salary_end', 
+    job_bulletins_df = job_bulletins_df.withColumn('salary_end', 
                                                    udfs['extract_salary_udf']('value').getField('salary_start'))
-    job_bulletins_df = job_bulletine_df.withColumn('start_date', udfs['extract_date_udf']('value'))
-    job_bulletins_df = job_bulletine_df.withColumn('enddate', udfs['extract_enddate_udf']('value'))
-    
-    j_df = job_bulletine_df.select('file_name', 'position', 'start_date', 'end_date','salary_start', 'salary_end')
+    job_bulletins_df = job_bulletins_df.withColumn('start_date', udfs['extract_date_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('enddate', udfs['extract_enddate_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('classnode', udfs['extract_classnode_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('req', udfs['extract_requirements_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('notes', udfs['extract_notes_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('duties', udfs['extract_duties_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('selection', udfs['extract_selection_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('experience_length', udfs['extract_experience_length_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('education_lenngth', udfs['extract_education_length_udf']('value'))
+    job_bulletins_df = job_bulletins_df.withColumn('application_location', udfs['extract_application_location_udf']('value'))
 
-    query = (job_bulletine_df
+
+    
+    j_df = job_bulletins_df.select('file_name', 'start_date', 'end_date','salary_start', 'salary_end', 'classnode',
+                                   'req', 'notes', 'duties', 'selection', 'experience_length', 
+                                   'education_length', 'application_location')
+
+    json_df = json_df.select('file_name', 'start_date', 'end_date','salary_start', 'salary_end', 'classnode',
+                                   'req', 'notes', 'duties', 'selection', 'experience_length', 
+                                   'education_length', 'application_location')
+    
+    union_dataframe = job_bulletine_df.union(json_df)
+
+    def streamWritter(input: DataFrame,checkpointFolder, output):
+        return (input.writeStream.
+                format('parquet')
+                .option(key:'checkpointLocation', checkpointFolder)
+                .option(key: 'path', output)
+                .outputMode('append')
+                .trigger(processingTime = '5 seconds')
+                .start()
+                )
+
+    query = (union_dataframe
              .writeStream
              .output('append')
              .format('console')
              .option('truncate', False)
              .start()
              )
+    
+    query = streamWritter(union_dataframe, checkpointFolder: 's3a://spark-unstructured-streaming/checkpoints/',
+                          output: 's3a://spark-unstructured-streaming/data/spark_unstructured')
+    
     
     query.awaitTermination()
