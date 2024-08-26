@@ -85,7 +85,7 @@ if __name__ == "__main__":
     job_bulletins_df = job_bulletine_df.withColumn('start_date', udfs['extract_date_udf']('value'))
     job_bulletins_df = job_bulletine_df.withColumn('enddate', udfs['extract_enddate_udf']('value'))
     
-    j_df = job_bulletine_df.select('file_name', 'position', 'start_date', 'end_date')
+    j_df = job_bulletine_df.select('file_name', 'position', 'start_date', 'end_date','salary_start', 'salary_end')
 
     query = (job_bulletine_df
              .writeStream
